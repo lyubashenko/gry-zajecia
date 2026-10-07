@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wiki-wyścig — small world w praktyce</title>
+<style>
+  :root{
+    --bg:#f9f9f7; --card:#fcfcfb; --ink:#0b0b0b; --ink2:#52514e; --muted:#898781;
+    --border:rgba(11,11,11,.10); --accent:#2a78d6;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#0d0d0d; --card:#1a1a19; --ink:#fff; --ink2:#c3c2b7;
+      --border:rgba(255,255,255,.10); --accent:#3987e5; }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:system-ui,-apple-system,"Segoe UI",sans-serif;line-height:1.45}
+  .wrap{max-width:560px;margin:0 auto;padding:16px 14px 40px}
+  h1{font-size:1.35rem;margin:.2rem 0 .1rem}
+  .sub{color:var(--ink2);font-size:.92rem;margin:0 0 14px}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:14px;
+    padding:16px;margin-bottom:12px}
+  .rules{font-size:.92rem;color:var(--ink2);padding-left:18px;margin:6px 0 0}
+  .rules li{margin:3px 0}
+  .pair{display:flex;align-items:center;gap:10px;justify-content:center;text-align:center;margin:10px 0}
+  .pair .art{flex:1;padding:12px 8px;border:1px solid var(--border);border-radius:12px;font-weight:700;font-size:1.05rem}
+  .pair .arrow{font-size:1.4rem;color:var(--muted)}
+  .timer{text-align:center;font-size:3rem;font-weight:700;font-variant-numeric:tabular-nums;margin:6px 0}
+  .btns{display:flex;gap:8px;margin-top:8px}
+  button{flex:1;padding:13px 8px;font-size:1rem;font-weight:700;border-radius:10px;
+    border:1px solid var(--border);background:var(--card);color:var(--ink);cursor:pointer;min-height:50px}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  button:disabled{opacity:.4}
+  button:active:not(:disabled){transform:translateY(1px)}
+  .save{display:none;margin-top:12px}
+  .save label{font-size:.9rem;color:var(--ink2)}
+  .save input{width:100%;padding:10px;font-size:1rem;border:1px solid var(--border);
+    border-radius:10px;background:var(--bg);color:var(--ink);margin:4px 0 8px}
+  table{width:100%;border-collapse:collapse;font-size:.9rem}
+  th,td{text-align:left;padding:7px 6px;border-bottom:1px solid var(--border)}
+  th{color:var(--muted);font-weight:600}
+  td.num{font-variant-numeric:tabular-nums}
+  .empty{color:var(--muted);font-size:.9rem}
+  details{margin-top:6px} summary{cursor:pointer;font-weight:600}
+  details p{color:var(--ink2);font-size:.92rem}
+  .foot{color:var(--muted);font-size:.8rem;margin-top:18px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🕹️ Wiki-wyścig</h1>
+  <p class="sub">Small world w praktyce · Społeczeństwo sieci, spotkanie 4</p>
+
+  <div class="card">
+    <b>Zasady:</b>
+    <ol class="rules">
+      <li>Wylosuj parę i otwórz artykuł startowy — stoper ruszy sam.</li>
+      <li>Do celu docierasz <b>klikając wyłącznie niebieskie linki w treści artykułu</b>.</li>
+      <li>Zakazane: wyszukiwarka, przycisk „wstecz", kategorie, przypisy, linki zewnętrzne.</li>
+      <li><b>Licz swoje kliknięcia</b> — na końcu wpiszesz ich liczbę.</li>
+    </ol>
+  </div>
+
+  <div class="card">
+    <div class="pair">
+      <div class="art" id="start">—</div>
+      <div class="arrow">→</div>
+      <div class="art" id="target">—</div>
+    </div>
+    <div class="btns">
+      <button id="bDraw">🎲 Losuj parę</button>
+      <button class="primary" id="bGo" disabled>Otwórz start ▸ stoper</button>
+    </div>
+    <div class="timer" id="timer">0:00</div>
+    <div class="btns">
+      <button class="primary" id="bStop" disabled>🏁 Meta! (zatrzymaj)</button>
+    </div>
+    <div class="save" id="save">
+      <label>Ile kliknięć?</label>
+      <input type="number" id="clicks" min="1" max="99" inputmode="numeric" placeholder="np. 5">
+      <label>Przez jakie artykuły-huby prowadziła trasa? (opcjonalnie)</label>
+      <input type="text" id="hubs" placeholder="np. Polska, Internet, Nauka">
+      <button class="primary" id="bSave" style="width:100%">Zapisz wynik</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <b style="font-size:.95rem">Twoje wyniki (na tym urządzeniu)</b>
+    <table id="tbl">
+      <thead><tr><th>trasa</th><th>czas</th><th>klik.</th></tr></thead>
+      <tbody id="rows"><tr><td colspan="3" class="empty">— jeszcze brak —</td></tr></tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <details>
+      <summary>Po co ta gra? (debriefing)</summary>
+      <p>Wikipedia ma ponad 1,6 mln polskich artykułów, a mimo to prawie każdą parę
+      łączy kilka kliknięć. To własność <b>małego świata</b> (Milgram: „sześć uścisków
+      dłoni"; Watts &amp; Strogatz): sieci są gęsto poprzeczne, ale ruch w nich kanalizują
+      <b>huby</b> — nieliczne węzły o ogromnej liczbie połączeń.</p>
+      <p><b>Na tablicy:</b> zbierzcie huby ze wszystkich tras. Ile osób przeszło przez te
+      same 2–3 artykuły? Sieć nie jest płaska — ma własną hierarchię. To pytanie wróci
+      przy „przestrzeni przepływów" i władzy w sieci (Castells).</p>
+    </details>
+  </div>
+
+  <p class="foot">Wyniki zapisują się tylko lokalnie w tej przeglądarce.
+  Społeczeństwo sieci · AGH.</p>
+</div>
+
+<script>
+"use strict";
+// === PARY (edytuj tutaj) — tytuły artykułów polskiej Wikipedii ===
+const STARTS=["Pierogi","Fotosynteza","Bitwa pod Grunwaldem","Mars","Lew","Szachy",
+  "Wisła","Kawa","Piramida Cheopsa","Tlen","Chopin","Wulkan","Żubr","Origami"];
+const TARGETS=["Manuel Castells","Internet","Społeczeństwo informacyjne","Globalizacja",
+  "Algorytm","Kapitalizm","Sieć społeczna","Sztuczna inteligencja"];
+// ==================================================================
+const $=id=>document.getElementById(id);
+let start=null,target=null,t0=null,tick=null,elapsed=0;
+
+function fmt(s){return Math.floor(s/60)+":"+String(Math.floor(s%60)).padStart(2,"0");}
+function draw(){
+  start=STARTS[Math.floor(Math.random()*STARTS.length)];
+  do{ target=TARGETS[Math.floor(Math.random()*TARGETS.length)]; }while(target===start);
+  $("start").textContent=start; $("target").textContent=target;
+  stopTimer(); elapsed=0; $("timer").textContent="0:00";
+  $("bGo").disabled=false; $("bStop").disabled=true; $("save").style.display="none";
+}
+function stopTimer(){ if(tick){clearInterval(tick);tick=null;} }
+$("bDraw").onclick=draw;
+$("bGo").onclick=()=>{
+  window.open("https://pl.wikipedia.org/wiki/"+encodeURIComponent(start.replace(/ /g,"_")),"_blank");
+  t0=Date.now(); stopTimer();
+  tick=setInterval(()=>{elapsed=(Date.now()-t0)/1000;$("timer").textContent=fmt(elapsed);},250);
+  $("bStop").disabled=false; $("bGo").disabled=true;
+};
+$("bStop").onclick=()=>{
+  stopTimer(); $("bStop").disabled=true;
+  $("save").style.display="block"; $("clicks").focus();
+};
+$("bSave").onclick=()=>{
+  const clicks=parseInt($("clicks").value,10);
+  if(!clicks){$("clicks").focus();return;}
+  const rec={route:start+" → "+target,time:fmt(elapsed),clicks,hubs:$("hubs").value.trim()};
+  const all=load(); all.unshift(rec);
+  try{localStorage.setItem("wikirace",JSON.stringify(all.slice(0,30)));}catch(e){}
+  render(); $("save").style.display="none"; $("clicks").value=""; $("hubs").value="";
+};
+function load(){ try{return JSON.parse(localStorage.getItem("wikirace"))||[];}catch(e){return [];} }
+function render(){
+  const all=load(), tb=$("rows");
+  if(!all.length){tb.innerHTML='<tr><td colspan="3" class="empty">— jeszcze brak —</td></tr>';return;}
+  tb.innerHTML=all.map(r=>`<tr><td>${r.route}${r.hubs?'<br><span style="color:var(--muted);font-size:.8rem">przez: '+r.hubs+"</span>":""}</td><td class="num">${r.time}</td><td class="num">${r.clicks}</td></tr>`).join("");
+}
+render(); draw();
+</script>
+</body>
+</html>
